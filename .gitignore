@@ -1,0 +1,4 @@
+.DS_Store
+verifCode/MNIST-data/
+verifCode/__pycache__/
+verifCode/venv/

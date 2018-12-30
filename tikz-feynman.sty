@@ -1,0 +1,41 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% TikZ-Feynman
+% Feynman Diagrams with TikZ
+% Copyright (C) 2015  Joshua Ellis
+%
+%
+% This work may be distributed and/or modified under the conditions of the LaTeX
+% Project Public License, either version 1.3 of this license or (at your option)
+% any later version.
+%
+% This work has the LPPL maintenance status `maintained'.
+%
+% The Current Maintainer of this work is Joshua Ellis.
+%
+% This program is distributed in the hope that it will be useful, but WITHOUT
+% ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+% FOR A PARTICULAR PURPOSE.  See the LaTeX Project Public License for more
+% details.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\def\tikzfeynman@date{2016/02/05}
+\def\tikzfeynman@version@major{1}
+\def\tikzfeynman@version@minor{1}
+\def\tikzfeynman@version@patch{0}
+\edef\tikzfeynman@version{\tikzfeynman@version@major.\tikzfeynman@version@minor.\tikzfeynman@version@patch}
+
+\ProvidesPackage{tikz-feynman}[\tikzfeynman@date v\tikzfeynman@version Feynman diagrams with TikZ]
+
+\RequirePackage{tikz}[2013/12/13] % v3.0.0
+\RequirePackage{ifluatex}
+\RequirePackage{pgfopts}
+
+\usetikzlibrary{feynman}
+
+\endinput
+
+% Local Variables:
+% TeX-master: "tikz-feynman"
+% End:

@@ -1,0 +1,815 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% TikZ-Feynman
+% Feynman Diagrams with TikZ
+% Copyright (C) 2015  Joshua Ellis
+%
+%
+% This work may be distributed and/or modified under the conditions of the LaTeX
+% Project Public License, either version 1.3 of this license or (at your option)
+% any later version.
+%
+% This work has the LPPL maintenance status `maintained'.
+%
+% The Current Maintainer of this work is Joshua Ellis.
+%
+% This program is distributed in the hope that it will be useful, but WITHOUT
+% ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+% FOR A PARTICULAR PURPOSE.  See the LaTeX Project Public License for more
+% details.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Shapes
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Crossed Circle
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\pgfdeclareshape{crossed circle}
+{
+  \inheritsavedanchors[from=circle]
+  \inheritanchorborder[from=circle]
+  \inheritanchor[from=circle]{north}
+  \inheritanchor[from=circle]{north west}
+  \inheritanchor[from=circle]{north east}
+  \inheritanchor[from=circle]{center}
+  \inheritanchor[from=circle]{west}
+  \inheritanchor[from=circle]{east}
+  \inheritanchor[from=circle]{mid}
+  \inheritanchor[from=circle]{mid west}
+  \inheritanchor[from=circle]{mid east}
+  \inheritanchor[from=circle]{base}
+  \inheritanchor[from=circle]{base west}
+  \inheritanchor[from=circle]{base east}
+  \inheritanchor[from=circle]{south}
+  \inheritanchor[from=circle]{south west}
+  \inheritanchor[from=circle]{south east}
+
+  \inheritbackgroundpath[from=circle]
+
+  \foregroundpath{
+    % Compute south west
+    \centerpoint
+    \pgf@xc=\radius
+    \advance\pgf@x by-0.707107\pgf@xc
+    \advance\pgf@y by-0.707107\pgf@xc
+    \pgf@xa=\pgf@x \pgf@ya=\pgf@y  % Store coordinates
+    % Compute north east point
+    \centerpoint
+    \pgf@xc=\radius
+    \advance\pgf@x by0.707107\pgf@xc
+    \advance\pgf@y by0.707107\pgf@xc
+    \pgf@xb=\pgf@x \pgf@yb=\pgf@y  % Store coordinates
+    \pgfpathmoveto{\pgfqpoint{\pgf@xa}{\pgf@ya}}
+    \pgfpathlineto{\pgfqpoint{\pgf@xb}{\pgf@yb}}
+    \pgfpathmoveto{\pgfqpoint{\pgf@xa}{\pgf@yb}}
+    \pgfpathlineto{\pgfqpoint{\pgf@xb}{\pgf@ya}}
+    \pgfsetarrowsstart{}
+    \pgfsetarrowsend{}
+ }
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Decorations
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Complete Sines
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Complete sines replaces the path with a whole number of sine waves.
+%% Thanks to http://tex.stackexchange.com/a/134516/26980
+\pgfdeclaredecoration{complete sines}{initial}
+{
+  %% Begin by computing the overall path length and find how many sine waves we
+  %% can fit in.  Nothing happens beyond the computation.
+  \state{initial}[
+    width=+0pt,
+    next state=move,
+    persistent precomputation={
+      \def\tikzfeynman@cs@angle@step{30}
+      \def\tikzfeynman@cs@current@angle{0}
+      \pgfmathsetlengthmacro{\tikzfeynman@cs@points@per@step}{
+        \pgfdecoratedinputsegmentlength
+        / int(\pgfdecoratedinputsegmentlength
+        / \pgfdecorationsegmentlength)
+        / 360
+        * \tikzfeynman@cs@angle@step}
+    },
+  ]{}
+  %% Move to the origin to the path
+  \state{move}[
+    width=+\tikzfeynman@cs@points@per@step,
+    next state=draw
+  ]{
+    \pgfpathmoveto{\pgfpointorigin}
+  }
+  %% Draw the sine wave itself.  This computes the value every 20 degrees and draws straight edges.
+  \state{draw}[
+    width=+\tikzfeynman@cs@points@per@step,
+    switch if less than=1.25*\tikzfeynman@cs@points@per@step to final, % <- bit of a hack
+    persistent postcomputation={
+      \pgfmathparse{mod(\tikzfeynman@cs@current@angle+\tikzfeynman@cs@angle@step, 360)}
+      \let\tikzfeynman@cs@current@angle=\pgfmathresult%
+    },
+  ]{
+    \pgfmathparse{sin(\tikzfeynman@cs@current@angle) * \pgfmetadecorationsegmentamplitude / 2}
+    \tikz@decoratepathfalse
+    \pgfpathlineto{\pgfqpoint{0pt}{\pgfmathresult pt}}%
+  }
+
+  \state{final}{
+    \ifdim\pgfdecoratedremainingdistance>0pt\relax
+      \pgfpathlineto{\pgfpointdecoratedpathlast}
+    \fi
+  }
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Keys
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\tikzfeynmanset{
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %% Hooks
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  execute at begin feynman/.code={},
+  execute at end feynman/.code={},
+  every feynman/.style={/tikzfeynman/every feynman@@/.append style={#1}},
+  every feynman@@/.style={
+    /tikzfeynman/.cd,
+    /tikzfeynman/medium,
+  },
+  execute at begin feynman@@/.code={}                     %% Internal version
+  execute at end feynman@@/.code={},                      %% Internal version
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %% Diagrams
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  every diagram/.style={/tikzfeynman/every diagram@@/.append style={#1}},
+  every diagram@@/.style={
+    /tikzfeynman/.cd,
+    .search also={/tikz/graphs, /tikz},
+    nodes={
+      /tikzfeynman/.cd,
+      /tikzfeynman/.search also={/tikz/graphs, /tikz},
+      /tikzfeynman/every vertex@@,
+      /tikzfeynman/every vertex},
+    edges={
+      /tikzfeynman/.cd,
+      /tikzfeynman/.search also={/tikz/graphs, /tikz},
+      /tikzfeynman/every edge@@,
+      /tikzfeynman/every edge},
+    /tikzfeynman/medium,
+  },
+  every inline/.style={/tikzfeynman/inline@@/.append style={#1}},
+  every inline@@/.style={
+    /tikzfeynman/small,
+  },
+  inline/.style={
+    /tikz/baseline={#1},
+    /tikzfeynman/every inline@@,
+  },
+  every small/.style={/tikzfeynman/small@@/.append style={#1}},
+  every small@@/.style={
+    /tikz/node distance=1cm,
+    /graph drawing/node distance=1.25cm,
+    /graph drawing/level distance=1cm,
+    /graph drawing/sibling distance=1.5cm,
+    /tikzfeynman/every dot@@/.append style={/tikz/minimum size=1mm},
+    /tikzfeynman/every crossed dot@@/.append style={/tikz/minimum size=2mm},
+    /tikzfeynman/every blob@@/.append style={/tikz/minimum size=0.5cm},
+    /tikzfeynman/arrow size=1.2pt,
+    /tikzfeynman/insertion/size=2.5pt,
+  },
+  small/.style={/tikzfeynman/every small@@},
+  every medium/.style={/tikzfeynman/medium@@/.append style={#1}},
+  every medium@@/.style={
+    /tikz/node distance=1.5cm,
+    /graph drawing/node distance=1.9cm,
+    /graph drawing/level distance=1.5cm,
+    /graph drawing/sibling distance=2.25cm,
+  },
+  medium/.style={/tikzfeynman/every medium@@},
+  every large/.style={/tikzfeynman/large@@/.append style={#1}},
+  every large@@/.style={
+    /tikz/node distance=2cm,
+    /graph drawing/node distance=2.5cm,
+    /graph drawing/level distance=2cm,
+    /graph drawing/sibling distance=3cm,
+    /tikz/graphs/edges={thick},
+    /tikzfeynman/every dot@@/.append style={/tikz/minimum size=2mm},
+    /tikzfeynman/every crossed dot@@/.append style={/tikz/minimum size=4mm},
+    /tikzfeynman/every blob@@/.append style={/tikz/minimum size=1cm},
+    /tikzfeynman/arrow size=1.6pt,
+    /tikzfeynman/insertion/size=4pt,
+  },
+  large/.style={/tikzfeynman/every large@@},
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %% Vertices
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  every vertex@@/.style={
+    /tikz/shape=coordinate,
+  },
+  every vertex/.style={/tikzfeynman/every vertex@@/.append style={#1}},
+  vertex/.style={
+    /tikzfeynman/every vertex@@,
+  },
+  every dot@@/.style={
+    /tikz/shape=circle,
+    /tikz/graphs/as={},
+    /tikz/draw,
+    /tikz/fill,
+    /tikz/inner sep=0pt,
+    /tikz/outer sep=0pt,
+    /tikz/minimum size=1.5mm,
+  },
+  every dot/.style={/tikzfeynman/every dot@@/.append style={#1}},
+  dot/.style={
+    /tikzfeynman/every dot@@,
+  },
+  every square dot@@/.style={
+    /tikz/shape=rectangle,
+  },
+  every square dot/.style={/tikzfeynman/every square dot@@/.append style={#1}},
+  square dot/.style={
+    /tikzfeynman/every dot@@,
+    /tikzfeynman/every square dot@@,
+  },
+  every empty dot@@/.style={
+    /tikz/fill=none,
+  },
+  every empty dot/.style={/tikzfeynman/every empty dot@@/.append style={#1}},
+  empty dot/.style={
+    /tikzfeynman/every dot@@,
+    /tikzfeynman/every empty dot@@,
+  },
+  every crossed dot@@/.style={
+    /tikz/fill=none,
+    /tikz/shape=crossed circle,
+    /tikz/minimum size=3mm,
+  },
+  every crossed dot/.style={/tikzfeynman/every crossed dot@@/.append style={#1}},
+  crossed dot/.style={
+    /tikzfeynman/every dot@@,
+    /tikzfeynman/every crossed dot@@,
+  },
+  every blob@@/.style={
+    /tikz/shape=circle,
+    /tikz/graphs/as={},
+    /tikz/draw,
+    /tikz/fill=none,
+    /tikz/outer sep=0.5\pgflinewidth,
+    /tikz/inner sep=0pt,
+    /tikz/minimum size=0.75cm,
+    /tikz/pattern=north west lines,
+  },
+  every blob/.style={/tikzfeynman/every blob@@/.append style={#1}},
+  blob/.style={
+    /tikzfeynman/every blob@@,
+  },
+  every particle@@/.style={
+    /tikz/shape=rectangle,
+    /tikz/draw=none,
+    /tikz/fill=none,
+    /tikz/inner sep=0.3333em,
+    /tikz/outer sep=0.5\pgflinewidth,
+  },
+  every particle/.style={/tikzfeynman/every particle@@/.append style={#1}},
+  particle/.style args={#1}{
+    /tikzfeynman/every particle@@,
+    /tikz/graphs/as={#1},
+  },
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %% Edge styles
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %% Arrow Style
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  arrow size/.store in=\tikzfeynman@arrow@size,
+  arrow size=1.5pt,
+  with arrow/.style={
+    /tikz/decoration={
+      markings,
+      mark=at position #1 with {
+        \node[
+          transform shape,
+          xshift=-0.5mm,
+          fill,
+          inner sep=\tikzfeynman@arrow@size,
+          draw=none,
+          isosceles triangle
+        ] { };
+      },
+    },
+    /tikz/postaction={
+      /tikz/decorate=true,
+    },
+  },
+  with reversed arrow/.style={
+    /tikz/decoration={
+      markings,
+      mark=at position #1 with {
+        \node[
+          transform shape,
+          xshift=-0.5mm,
+          rotate=180,
+          fill,
+          inner sep=\tikzfeynman@arrow@size,
+          draw=none,
+          isosceles triangle
+        ] { };
+      },
+    },
+    /tikz/postaction={
+      /tikz/decorate=true,
+    },
+  },
+  %% Base Edge Styles
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  every edge@@/.style={},
+  every edge/.style={/tikzfeynman/every edge@@/.append style={#1}},
+  %% Specific Styles
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  every plain@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikz/draw
+    },
+  },
+  every plain/.style={/tikzfeynman/every plain@@/.append style={#1}},
+  plain/.style={
+    /tikzfeynman/every plain@@,
+  },
+  every boson@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikz/draw,
+      /tikz/decoration={
+        complete sines,
+        amplitude=1mm,
+        segment length=2mm,
+      },
+      /tikz/decorate=true,
+    },
+  },
+  every boson/.style={/tikzfeynman/every boson@@/.append style={#1}},
+  boson/.style={
+    /tikzfeynman/every boson@@,
+  },
+  every charged boson@@/.style={
+    /tikzfeynman/with arrow=0.5,
+  },
+  every charged boson/.style={/tikzfeynman/every charged boson@@/.append style={#1}},
+  charged boson/.style={
+    /tikzfeynman/boson,
+    /tikzfeynman/every charged boson@@,
+  },
+  every anti charged boson@@/.style={
+    /tikzfeynman/with reversed arrow=0.5,
+  },
+  every anti charged boson/.style={/tikzfeynman/every anti charged boson@@/.append style={#1}},
+  anti charged boson/.style={
+    /tikzfeynman/boson,
+    /tikzfeynman/every anti charged boson@@,
+  },
+  every photon@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikz/draw,
+      /tikz/decoration={
+        complete sines,
+        amplitude=1mm,
+        segment length=2mm,
+      },
+      /tikz/decorate=true,
+    },
+  },
+  every photon/.style={/tikzfeynman/every photon@@/.append style={#1}},
+  photon/.style={
+    /tikzfeynman/every photon@@,
+  },
+  every scalar@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikz/draw,
+      /tikz/dashed,
+    },
+  },
+  every scalar/.style={/tikzfeynman/every scalar@@/.append style={#1}},
+  scalar/.style={
+    /tikzfeynman/every scalar@@,
+  },
+  every charged scalar@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikzfeynman/with arrow=0.5,
+    },
+  },
+  every charged scalar/.style={/tikzfeynman/every charged scalar@@/.append style={#1}},
+  charged scalar/.style={
+    /tikzfeynman/scalar,
+    /tikzfeynman/every charged scalar@@,
+  },
+  every anti charged scalar@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikzfeynman/with reversed arrow=0.5,
+    },
+  },
+  every anti charged scalar/.style={/tikzfeynman/every anti charged scalar@@/.append style={#1}},
+  anti charged scalar/.style={
+    /tikzfeynman/scalar,
+    /tikzfeynman/every anti charged scalar@@,
+  },
+  every ghost@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikz/draw,
+      /tikz/dotted,
+      /tikz/thick,
+    },
+  },
+  every ghost/.style={/tikzfeynman/every ghost@@/.append style={#1}},
+  ghost/.style={
+    /tikzfeynman/every ghost@@,
+  },
+  every fermion@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikz/draw,
+      /tikzfeynman/with arrow=0.5,
+    },
+  },
+  every fermion/.style={/tikzfeynman/every fermion@@/.append style={#1}},
+  fermion/.style={
+    /tikzfeynman/every fermion@@,
+  },
+  every anti fermion@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikz/draw,
+      /tikzfeynman/with reversed arrow=0.5,
+    },
+  },
+  every anti fermion/.style={/tikzfeynman/every anti fermion@@/.append style={#1}},
+  anti fermion/.style={
+    /tikzfeynman/every anti fermion@@,
+  },
+  every majorana@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikz/draw,
+      /tikzfeynman/with arrow=0.33,
+      /tikzfeynman/with reversed arrow=0.73,
+    },
+  },
+  every majorana/.style={/tikzfeynman/every majorana@@/.append style={#1}},
+  majorana/.style={
+    /tikzfeynman/every majorana@@,
+  },
+  every anti majorana@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikz/draw,
+      /tikzfeynman/with reversed arrow=0.33,
+      /tikzfeynman/with arrow=0.73,
+    },
+  },
+  every anti majorana/.style={/tikzfeynman/every anti majorana@@/.append style={#1}},
+  anti majorana/.style={
+    /tikzfeynman/every anti majorana@@,
+  },
+  every gluon@@/.style={
+    /tikz/draw=none,
+    /tikz/decoration={name=none},
+    /tikz/postaction={
+      /tikz/draw,
+      /tikz/decoration={
+        coil,
+        aspect=0.75,
+        mirror,
+        segment length=1.5mm
+      },
+      /tikz/decorate=true,
+    },
+  },
+  every gluon/.style={/tikzfeynman/every gluon@@/.append style={#1}},
+  gluon/.style={
+    /tikzfeynman/every gluon@@,
+  },
+  %% Insertions
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  insertion/.search also={/tikzfeynman,/tikz},
+  %% Parameters
+  insertion/size/.store in=\tikzfeynman@insertion@size,
+  insertion/size=3pt,
+  insertion/style/.store in=\tikzfeynman@insertion@style,
+  insertion/style={},
+  %% Styles
+  insertion@@/.style args={[#1]#2}{
+    /tikz/decoration={
+      markings,
+      mark=at position #2 with {
+        \tikzfeynmanset{insertion/.cd,#1}
+        \draw [\tikzfeynman@insertion@style] (-\tikzfeynman@insertion@size, -\tikzfeynman@insertion@size) -- (\tikzfeynman@insertion@size, \tikzfeynman@insertion@size);
+        \draw [\tikzfeynman@insertion@style] (-\tikzfeynman@insertion@size, \tikzfeynman@insertion@size) -- (\tikzfeynman@insertion@size, -\tikzfeynman@insertion@size);
+      },
+    },
+    /tikz/postaction={
+      /tikz/decorate=true,
+    },
+  },
+  insertion@@/.default={[]0.5},
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %% Momentum arrows
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  momentum/.search also={/tikzfeynman,/tikz},
+  %% Parameters
+  momentum/label distance/.store in=\tikzfeynman@momentum@label@distance,
+  momentum/label distance=0pt,
+  momentum/arrow distance/.store in=\tikzfeynman@momentum@arrow@distance,
+  momentum/arrow distance=3mm,
+  momentum/arrow shorten/.store in=\tikzfeynman@momentum@arrow@shorten,
+  momentum/arrow shorten=0.15,
+  momentum/label style/.store in=\tikzfeynman@momentum@label@style,
+  momentum/label style={},
+  momentum/arrow style/.store in=\tikzfeynman@momentum@arrow@style,
+  momentum/arrow style={},
+  %% Styles
+  momentum@@/.style args={[#1]#2}{
+    /tikz/preaction={
+      /tikz/decoration={
+        show path construction,
+        moveto code={},
+        lineto code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentfirst) -- (\tikzinputsegmentlast)
+                coordinate [pos=\tikzfeynman@momentum@arrow@shorten] (tf@m@1)
+                coordinate [pos=1 - \tikzfeynman@momentum@arrow@shorten] (tf@m@2);
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@2)$)
+                -- ($(tf@m@2)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@1)$)
+                node [pos=0.5, auto,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@label@style] {#2};
+        },
+        curveto code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentfirst)
+                .. controls (\tikzinputsegmentsupporta) and (\tikzinputsegmentsupportb)
+                .. (\tikzinputsegmentlast)
+                { \foreach \i in {1, ..., 50} {
+                  coordinate [pos=\tikzfeynman@momentum@arrow@shorten + (1-2 * \tikzfeynman@momentum@arrow@shorten)*\i/50] (tf@m@\i) } };
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@2)$)
+                foreach \i [count=\j from 3] in {2, ..., 24} {
+                  -- ($(tf@m@\i)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@\j)$)
+                }
+                -- ($(tf@m@25)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@26)$)
+                node [pos=0.5, auto,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@arrow@style] {#2}
+                foreach \i [count=\j from 27] in {26, ..., 49} {
+                  -- ($(tf@m@\i)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@\j)$)
+                }
+                -- ($(tf@m@50)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@49)$);
+        },
+        closepath code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentfirst) -- (\tikzinputsegmentlast)
+                coordinate [pos=\tikzfeynman@momentum@arrow@shorten] (tf@m@1)
+                coordinate [pos=1 - \tikzfeynman@momentum@arrow@shorten] (tf@m@2);
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@2)$)
+                -- ($(tf@m@2)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@1)$)
+                node [pos=0.5, auto,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@label@style] {#2};
+        },
+      },
+      /tikz/decorate=true,
+    },
+  },
+  momentum'@@/.style args={[#1]#2}{
+    /tikz/preaction={
+      /tikz/decoration={
+        show path construction,
+        moveto code={},
+        lineto code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentfirst) -- (\tikzinputsegmentlast)
+                coordinate [pos=\tikzfeynman@momentum@arrow@shorten] (tf@m@1)
+                coordinate [pos=1 - \tikzfeynman@momentum@arrow@shorten] (tf@m@2);
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@2)$)
+                -- ($(tf@m@2)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@1)$)
+                node [pos=0.5, auto, swap,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@label@style] {#2};
+        },
+        curveto code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentfirst)
+                .. controls (\tikzinputsegmentsupporta) and (\tikzinputsegmentsupportb)
+                .. (\tikzinputsegmentlast)
+                { \foreach \i in {1, ..., 50} {
+                  coordinate [pos=\tikzfeynman@momentum@arrow@shorten + (1-2 * \tikzfeynman@momentum@arrow@shorten)*\i/50] (tf@m@\i) } };
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@2)$)
+                foreach \i [count=\j from 3] in {2, ..., 24} {
+                  -- ($(tf@m@\i)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@\j)$)
+                }
+                -- ($(tf@m@25)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@26)$)
+                node [pos=0.5, auto, swap,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@arrow@style] {#2}
+                foreach \i [count=\j from 27] in {26, ..., 49} {
+                  -- ($(tf@m@\i)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@\j)$)
+                }
+                -- ($(tf@m@50)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@49)$);
+        },
+        closepath code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentfirst) -- (\tikzinputsegmentlast)
+                coordinate [pos=\tikzfeynman@momentum@arrow@shorten] (tf@m@1)
+                coordinate [pos=1 - \tikzfeynman@momentum@arrow@shorten] (tf@m@2);
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@2)$)
+                -- ($(tf@m@2)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@1)$)
+                node [pos=0.5, auto, swap,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@label@style] {#2};
+        },
+      },
+      /tikz/decorate=true,
+    },
+  },
+  reversed momentum@@/.style args={[#1]#2}{
+    /tikz/preaction={
+      /tikz/decoration={
+        show path construction,
+        moveto code={},
+        lineto code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentlast) -- (\tikzinputsegmentfirst)
+                coordinate [pos=\tikzfeynman@momentum@arrow@shorten] (tf@m@1)
+                coordinate [pos=1 - \tikzfeynman@momentum@arrow@shorten] (tf@m@2);
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@2)$)
+                -- ($(tf@m@2)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@1)$)
+                node [pos=0.5, auto, swap,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@label@style] {#2};
+        },
+        curveto code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentlast)
+                .. controls (\tikzinputsegmentsupportb) and (\tikzinputsegmentsupporta)
+                .. (\tikzinputsegmentfirst)
+                { \foreach \i in {1, ..., 50} {
+                  coordinate [pos=\tikzfeynman@momentum@arrow@shorten + (1-2 * \tikzfeynman@momentum@arrow@shorten)*\i/50] (tf@m@\i) } };
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@2)$)
+                foreach \i [count=\j from 3] in {2, ..., 24} {
+                  -- ($(tf@m@\i)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@\j)$)
+                }
+                -- ($(tf@m@25)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@26)$)
+                node [pos=0.5, auto, swap,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@arrow@style] {#2}
+                foreach \i [count=\j from 27] in {26, ..., 49} {
+                  -- ($(tf@m@\i)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@\j)$)
+                }
+                -- ($(tf@m@50)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@49)$);
+        },
+        closepath code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentlast) -- (\tikzinputsegmentfirst)
+                coordinate [pos=\tikzfeynman@momentum@arrow@shorten] (tf@m@1)
+                coordinate [pos=1 - \tikzfeynman@momentum@arrow@shorten] (tf@m@2);
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@2)$)
+                -- ($(tf@m@2)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@1)$)
+                node [pos=0.5, auto, swap,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@label@style] {#2};
+        },
+      },
+      /tikz/decorate=true,
+    },
+  },
+  reversed momentum'@@/.style args={[#1]#2}{
+    /tikz/preaction={
+      /tikz/decoration={
+        show path construction,
+        moveto code={},
+        lineto code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentlast) -- (\tikzinputsegmentfirst)
+                coordinate [pos=\tikzfeynman@momentum@arrow@shorten] (tf@m@1)
+                coordinate [pos=1 - \tikzfeynman@momentum@arrow@shorten] (tf@m@2);
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@2)$)
+                -- ($(tf@m@2)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@1)$)
+                node [pos=0.5,
+                      auto,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@label@style] {#2};
+        },
+        curveto code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentlast)
+                .. controls (\tikzinputsegmentsupportb) and (\tikzinputsegmentsupporta)
+                .. (\tikzinputsegmentfirst)
+                { \foreach \i in {1, ..., 50} {
+                  coordinate [pos=\tikzfeynman@momentum@arrow@shorten + (1-2 * \tikzfeynman@momentum@arrow@shorten)*\i/50] (tf@m@\i) } };
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@2)$)
+                foreach \i [count=\j from 3] in {2, ..., 24} {
+                  -- ($(tf@m@\i)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@\j)$)
+                }
+                -- ($(tf@m@25)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@26)$)
+                node [pos=0.5,
+                      auto,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@arrow@style] {#2}
+                foreach \i [count=\j from 27] in {26, ..., 49} {
+                  -- ($(tf@m@\i)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@\j)$)
+                }
+                -- ($(tf@m@50)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@49)$);
+        },
+        closepath code={
+          \tikzfeynmanset{momentum/.cd,#1}
+          \path (\tikzinputsegmentlast) -- (\tikzinputsegmentfirst)
+                coordinate [pos=\tikzfeynman@momentum@arrow@shorten] (tf@m@1)
+                coordinate [pos=1 - \tikzfeynman@momentum@arrow@shorten] (tf@m@2);
+          \draw [-Stealth, \tikzfeynman@momentum@arrow@style]
+                ($(tf@m@1)!\tikzfeynman@momentum@arrow@distance!90:(tf@m@2)$)
+                -- ($(tf@m@2)!\tikzfeynman@momentum@arrow@distance!-90:(tf@m@1)$)
+                node [pos=0.5, auto,
+                      outer sep=\tikzfeynman@momentum@label@distance,
+                      \tikzfeynman@momentum@label@style] {#2};
+        },
+      },
+      /tikz/decorate=true,
+    },
+  },
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %% Modifiers
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  half left/.style={
+    /tikz/bend left=90,
+    /tikz/looseness=1.5,
+  },
+  half right/.style={
+    /tikz/bend right=90,
+    /tikz/looseness=1.5,
+  },
+  quarter left/.style={
+    /tikz/bend left=45,
+  },
+  quarter right/.style={
+    /tikz/bend right=45,
+  },
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Graceful Failure of LuaTeX keys
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\def\tikzfeynman@luatex@required@path{
+  \PackageWarning{tikz-feynman}{The key you tried to use '\pgfkeyscurrentpath/\pgfkeyscurrentname' requires LuaTeX.  It will be ignored.}
+}
+\def\tikzfeynman@luatex@required@key{
+  \PackageWarning{tikz-feynman}{The key you tried to use '\pgfkeyscurrentpath' requires LuaTeX.  It will be ignored.}
+}
+
+\ifluatex\else
+  \pgfkeys{
+    /graph drawing/.unknown/.code=\tikzfeynman@luatex@required@path,
+    /tikz/graphs/.unknown/.code=\tikzfeynman@luatex@required@path,
+    /tikz/horizontal/.code=\tikzfeynman@luatex@required@key,
+    /tikz/horizontal'/.code=\tikzfeynman@luatex@required@key,
+    /tikz/vertical/.code=\tikzfeynman@luatex@required@key,
+    /tikz/vertical'/.code=\tikzfeynman@luatex@required@key,
+    /tikz/tree layout/.code=\tikzfeynman@luatex@required@key,
+    /tikz/spring layout/.code=\tikzfeynman@luatex@required@key,
+    /tikz/layered layout/.code=\tikzfeynman@luatex@required@key,
+    /tikz/spring electrical layout/.code=\tikzfeynman@luatex@required@key,
+    /tikz/electric charge/.code=\tikzfeynman@luatex@required@key,
+  }
+  % \tikzfeynmanset{
+  %   horizontal/.code={The key 'horizontal' requires LuaTeX.  It will be ignored.},
+  % }
+\fi
+
+\endinput
